@@ -6,11 +6,9 @@ import br.com.bscash.efinanceira.domain.model.EventoBancoInfo;
 import br.com.bscash.efinanceira.domain.model.LoteBancoInfo;
 import br.com.bscash.efinanceira.domain.service.LoteService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController

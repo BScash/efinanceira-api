@@ -51,3 +51,12 @@ logging:
     org.springframework.web: INFO
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+jwt:
+  token:
+    secret: ${JWT_SECRET:~PUl^P7NvWme[&lt;&lt;}eHsdA*|&amp;*cvf|R4NN6QBlrigz3MhMa!o)TTTTTRRRRRRASDGV}
+    expiration-time-in-minutes: ${JWT_EXPIRATION:1000}
+
+backoffice:
+  api:  
+    url: ${BACKOFFICE_API_URL:http://dev.bscash.com.br:8180/backoffice}

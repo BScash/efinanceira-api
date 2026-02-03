@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -19,8 +20,8 @@ public class LoteService {
     
     public List<LoteBancoInfo> buscarLotes(LocalDateTime dataInicio, LocalDateTime dataFim, 
                                           String periodo, String ambiente, Integer limite) {
-        ajustarDatas(dataInicio, dataFim);
-        return repository.buscarLotes(dataInicio, dataFim, periodo, ambiente, limite);
+        DatasAjustadas datas = ajustarDatas(dataInicio, dataFim);
+        return repository.buscarLotes(datas.dataInicio(), datas.dataFim(), periodo, ambiente, limite);
     }
     
     public LoteBancoInfo buscarLotePorProtocolo(String protocolo) {
@@ -47,13 +48,18 @@ public class LoteService {
         return repository.verificarAberturaEnviadaParaPeriodo(periodo, ambiente);
     }
     
-    private void ajustarDatas(LocalDateTime dataInicio, LocalDateTime dataFim) {
+    private DatasAjustadas ajustarDatas(LocalDateTime dataInicio, LocalDateTime dataFim) {
+        LocalDateTime dataInicioAjustada = dataInicio;
+        LocalDateTime dataFimAjustada = dataFim;
+        
         if (dataInicio != null && dataFim == null) {
-            // Se só tem data início, ajusta data fim para fim do dia
-            // Mas não podemos modificar aqui, então deixamos o repositório lidar
+            dataFimAjustada = dataInicio.with(LocalTime.MAX);
         } else if (dataInicio == null && dataFim != null) {
-            // Se só tem data fim, ajusta data início para início do dia
-            // Mas não podemos modificar aqui, então deixamos o repositório lidar
+            dataInicioAjustada = dataFim.with(LocalTime.MIN);
         }
+        
+        return new DatasAjustadas(dataInicioAjustada, dataFimAjustada);
     }
+    
+    private record DatasAjustadas(LocalDateTime dataInicio, LocalDateTime dataFim) {}
 }

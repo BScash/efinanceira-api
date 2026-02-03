@@ -29,8 +29,10 @@ public class PessoasComContasRequest {
     private Integer mesFinal;
     
     @Min(value = 1, message = "Limit deve ser maior que 0")
+    @Builder.Default
     private Integer limit = 100;
     
     @Min(value = 0, message = "Offset deve ser maior ou igual a 0")
+    @Builder.Default
     private Integer offset = 0;
 }

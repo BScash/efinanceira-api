@@ -15,6 +15,10 @@ import java.util.List;
 @Repository
 public class LoteRepository {
     
+    private static final String PARAM_PERIODO = "periodo";
+    private static final String PARAM_AMBIENTE = "ambiente";
+    private static final String TIPO_LOTE_MOVIMENTACAO = "MOVIMENTACAO";
+    
     private final NamedParameterJdbcTemplate jdbcTemplate;
     
     private static final String BUSCAR_LOTES_SQL = """
@@ -137,16 +141,16 @@ public class LoteRepository {
         }
         
         if (periodo != null && !periodo.isBlank()) {
-            whereConditions.add("l.periodo = :periodo");
-            params.addValue("periodo", periodo);
+            whereConditions.add("l.periodo = :" + PARAM_PERIODO);
+            params.addValue(PARAM_PERIODO, periodo);
         }
         
         if (ambiente != null && !ambiente.isBlank()) {
             if ("TEST".equalsIgnoreCase(ambiente) || "TESTE".equalsIgnoreCase(ambiente)) {
                 whereConditions.add("(l.ambiente = 'TEST' OR l.ambiente = 'HOMOLOG')");
             } else {
-                whereConditions.add("l.ambiente = :ambiente");
-                params.addValue("ambiente", ambiente);
+                whereConditions.add("l.ambiente = :" + PARAM_AMBIENTE);
+                params.addValue(PARAM_AMBIENTE, ambiente);
             }
         }
         
@@ -188,8 +192,8 @@ public class LoteRepository {
     
     public boolean verificarAberturaEnviadaParaPeriodo(String periodo, String ambiente) {
         MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("periodo", periodo)
-                .addValue("ambiente", ambiente);
+                .addValue(PARAM_PERIODO, periodo)
+                .addValue(PARAM_AMBIENTE, ambiente);
         
         List<LoteBancoInfo> lotes = jdbcTemplate.query(VERIFICAR_ABERTURA_ENVIADA_SQL, params, loteRowMapper());
         
@@ -214,14 +218,14 @@ public class LoteRepository {
             
             return LoteBancoInfo.builder()
                     .idLote(getLong(rs, "idlote"))
-                    .periodo(getString(rs, "periodo"))
+                    .periodo(getString(rs, PARAM_PERIODO))
                     .semestre(getInteger(rs, "semestre"))
                     .numeroLote(getInteger(rs, "numerolote"))
                     .quantidadeEventos(getInteger(rs, "quantidadeeventos"))
                     .cnpjDeclarante(getString(rs, "cnpjdeclarante"))
                     .protocoloEnvio(getString(rs, "protocoloenvio"))
                     .status(getString(rs, "status"))
-                    .ambiente(getString(rs, "ambiente"))
+                    .ambiente(getString(rs, PARAM_AMBIENTE))
                     .codigoRespostaEnvio(getInteger(rs, "codigorespostaenvio"))
                     .descricaoRespostaEnvio(getString(rs, "descricaorespostaenvio"))
                     .codigoRespostaConsulta(getInteger(rs, "codigorespostaconsulta"))
@@ -266,7 +270,7 @@ public class LoteRepository {
     
     private String determinarTipoLote(String caminhoArquivo) {
         if (caminhoArquivo == null || caminhoArquivo.isBlank()) {
-            return "MOVIMENTACAO";
+            return TIPO_LOTE_MOVIMENTACAO;
         }
         
         String nomeArquivo = caminhoArquivo.toLowerCase();
@@ -277,16 +281,19 @@ public class LoteRepository {
         } else if (nomeArquivo.contains("cadastro") || nomeArquivo.contains("declarante")) {
             return "CADASTRO_DECLARANTE";
         } else if (nomeArquivo.contains("movimentacao") || nomeArquivo.contains("movimentação")) {
-            return "MOVIMENTACAO";
+            return TIPO_LOTE_MOVIMENTACAO;
         }
         
-        return "MOVIMENTACAO";
+        return TIPO_LOTE_MOVIMENTACAO;
     }
     
     private String getString(java.sql.ResultSet rs, String columnName) {
         try {
             String value = rs.getString(columnName);
-            return rs.wasNull() ? "" : (value != null ? value : "");
+            if (rs.wasNull()) {
+                return "";
+            }
+            return value != null ? value : "";
         } catch (Exception e) {
             return "";
         }
@@ -326,7 +333,10 @@ public class LoteRepository {
     private LocalDateTime getLocalDateTime(java.sql.ResultSet rs, String columnName) {
         try {
             java.sql.Timestamp timestamp = rs.getTimestamp(columnName);
-            return rs.wasNull() ? null : (timestamp != null ? timestamp.toLocalDateTime() : null);
+            if (rs.wasNull()) {
+                return null;
+            }
+            return timestamp != null ? timestamp.toLocalDateTime() : null;
         } catch (Exception e) {
             return null;
         }

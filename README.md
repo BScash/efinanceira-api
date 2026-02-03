@@ -26,6 +26,9 @@ A API disponibiliza os seguintes endpoints:
 - **Spring Boot 3.2.0**: Framework principal
 - **Spring Data JPA**: Persistência de dados
 - **PostgreSQL**: Banco de dados
+- **Spring Security**: Autenticação e autorização
+- **JWT (JSON Web Token)**: Tokens de autenticação
+- **Spring WebFlux**: Cliente HTTP reativo para comunicação com backoffice-api
 - **Spring AOP**: Programação orientada a aspectos para logging
 - **Lombok**: Redução de boilerplate
 - **Maven**: Gerenciamento de dependências
@@ -88,6 +91,26 @@ spring:
     password: SUA_SENHA
 ```
 
+### Configuração de Autenticação
+
+A API utiliza autenticação JWT integrada com o backoffice-api. Configure as seguintes propriedades:
+
+```yaml
+jwt:
+  token:
+    # IMPORTANTE: O secret deve ser o mesmo usado no backoffice-api
+    secret: ${JWT_SECRET:seu-secret-key}
+    expiration-time-in-minutes: ${JWT_EXPIRATION:1000}
+
+backoffice:
+  api:
+    url: ${BACKOFFICE_API_URL:http://dev.bscash.com.br:8180/backoffice}
+```
+
+**Variáveis de Ambiente:**
+- `JWT_SECRET`: Secret key para validação de tokens JWT (deve ser o mesmo do backoffice-api)
+- `BACKOFFICE_API_URL`: URL base do backoffice-api para autenticação
+
 ### Executando a Aplicação
 
 ```bash
@@ -100,6 +123,133 @@ mvn spring-boot:run
 
 A API estará disponível em: `http://localhost:8080`
 
+## 🔐 Autenticação e Segurança
+
+### Como Funciona a Autenticação
+
+A efinanceira-api utiliza autenticação JWT integrada com o **backoffice-api**. Todas as APIs protegidas requerem um token JWT válido obtido através do endpoint de autenticação.
+
+#### Fluxo de Autenticação
+
+1. **Obter Token**: O cliente faz uma requisição POST para `/auth` com login e senha
+2. **Validação no Backoffice**: A efinanceira-api encaminha a requisição para o backoffice-api
+3. **Retorno do Token**: O backoffice-api retorna um token JWT válido
+4. **Uso do Token**: O cliente utiliza o token no header `Authorization: Bearer <token>` em todas as requisições protegidas
+
+#### Proteção das APIs
+
+Todas as APIs dos controllers `LoteController` e `PessoaContaController` estão **protegidas** e requerem autenticação:
+
+- ✅ **Protegidas (requerem token)**:
+  - `POST /api/v1/lotes/buscar`
+  - `GET /api/v1/lotes/protocolo/{protocolo}`
+  - `GET /api/v1/lotes/{idLote}/eventos`
+  - `GET /api/v1/lotes/verificar-abertura`
+  - `POST /api/v1/pessoas-contas/buscar`
+  - `POST /api/v1/pessoas-contas/totais-movimentacao`
+
+- 🔓 **Públicas (não requerem token)**:
+  - `POST /auth` - Endpoint de autenticação
+  - `GET /actuator/**` - Endpoints de monitoramento
+
+#### Como Testar a Autenticação
+
+**1. Autenticar e obter token:**
+
+```bash
+curl --location --request POST 'http://localhost:8080/auth' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "login": "seu_login",
+    "senha": "sua_senha"
+}'
+```
+
+**Resposta esperada:**
+```json
+{
+    "success": true,
+    "message": "Autenticação realizada com sucesso",
+    "data": {
+        "refreshToken": "uuid-refresh-token",
+        "accessToken": {
+            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            "type": "Bearer"
+        }
+    },
+    "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+**2. Usar o token em requisições protegidas:**
+
+```bash
+# Exemplo: Buscar lotes
+curl --location --request POST 'http://localhost:8080/api/v1/lotes/buscar' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' \
+--data-raw '{
+    "dataInicio": "2024-01-01T00:00:00",
+    "dataFim": "2024-01-31T23:59:59",
+    "periodo": "202401",
+    "ambiente": "PROD",
+    "limite": 50
+}'
+```
+
+**3. Testar sem token (deve retornar 401 Unauthorized):**
+
+```bash
+curl --location --request POST 'http://localhost:8080/api/v1/lotes/buscar' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "dataInicio": "2024-01-01T00:00:00",
+    "dataFim": "2024-01-31T23:59:59"
+}'
+```
+
+**Resposta esperada (401 Unauthorized):**
+```json
+{
+    "success": false,
+    "message": "Token inválido ou ausente. Autenticação necessária.",
+    "data": null,
+    "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+**4. Testar com token inválido (deve retornar 401 Unauthorized):**
+
+```bash
+curl --location --request POST 'http://localhost:8080/api/v1/lotes/buscar' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer token-invalido' \
+--data-raw '{
+    "dataInicio": "2024-01-01T00:00:00",
+    "dataFim": "2024-01-31T23:59:59"
+}'
+```
+
+#### Arquitetura de Segurança
+
+A segurança é implementada através de:
+
+1. **AutenticacaoViaTokenFilter**: Filtro que intercepta todas as requisições e valida o token JWT no header `Authorization`
+2. **TokenService**: Serviço responsável por validar tokens JWT e extrair informações do usuário autenticado
+3. **AuthenticationService**: Serviço que faz a comunicação com o backoffice-api para autenticação inicial
+4. **WebSecurityConfiguration**: Configuração do Spring Security que define quais endpoints são públicos e quais requerem autenticação
+5. **CustomAuthenticationEntryPoint**: Tratamento de erros de autenticação, retornando respostas padronizadas
+
+#### Validação do Token
+
+O token JWT é validado verificando:
+- ✅ Assinatura do token (usando o secret configurado)
+- ✅ Expiração do token
+- ✅ Formato e estrutura do token
+- ✅ Presença do ID do usuário no subject do token
+
+**Importante**: O `jwt.token.secret` configurado na efinanceira-api **deve ser idêntico** ao secret usado no backoffice-api para que a validação funcione corretamente.
+
 ## 📚 Endpoints da API
 
 ### Base URL
@@ -107,9 +257,52 @@ A API estará disponível em: `http://localhost:8080`
 http://localhost:8080/api/v1
 ```
 
+### 🔐 Autenticação
+
+**POST** `/auth`
+
+**Headers:**
+- `Content-Type: application/json`
+- `User-Agent` (opcional)
+- `X-Real-IP` (opcional)
+
+**Request Body:**
+```json
+{
+  "login": "seu_login",
+  "senha": "sua_senha"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Autenticação realizada com sucesso",
+  "data": {
+    "refreshToken": "uuid-refresh-token",
+    "accessToken": {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "type": "Bearer"
+    }
+  },
+  "timestamp": "2024-01-15T10:30:00"
+}
+```
+
+**⚠️ Nota**: Este endpoint é público e não requer autenticação.
+
+---
+
 ### 1. Buscar Pessoas com Contas
 
-**POST** `/pessoas-contas/buscar`
+**POST** `/api/v1/pessoas-contas/buscar`
+
+**🔒 Requer Autenticação**: Sim (Bearer Token)
+
+**Headers:**
+- `Authorization: Bearer <token>`
+- `Content-Type: application/json`
 
 **Request Body:**
 ```json
@@ -157,7 +350,13 @@ http://localhost:8080/api/v1
 
 ### 2. Calcular Totais de Movimentação
 
-**POST** `/pessoas-contas/totais-movimentacao`
+**POST** `/api/v1/pessoas-contas/totais-movimentacao`
+
+**🔒 Requer Autenticação**: Sim (Bearer Token)
+
+**Headers:**
+- `Authorization: Bearer <token>`
+- `Content-Type: application/json`
 
 **Request Body:**
 ```json
@@ -184,7 +383,13 @@ http://localhost:8080/api/v1
 
 ### 3. Buscar Lotes
 
-**POST** `/lotes/buscar`
+**POST** `/api/v1/lotes/buscar`
+
+**🔒 Requer Autenticação**: Sim (Bearer Token)
+
+**Headers:**
+- `Authorization: Bearer <token>`
+- `Content-Type: application/json`
 
 **Request Body:**
 ```json
@@ -228,7 +433,12 @@ http://localhost:8080/api/v1
 
 ### 4. Buscar Lote por Protocolo
 
-**GET** `/lotes/protocolo/{protocolo}`
+**GET** `/api/v1/lotes/protocolo/{protocolo}`
+
+**🔒 Requer Autenticação**: Sim (Bearer Token)
+
+**Headers:**
+- `Authorization: Bearer <token>`
 
 **Response:**
 ```json
@@ -247,7 +457,12 @@ http://localhost:8080/api/v1
 
 ### 5. Buscar Eventos do Lote
 
-**GET** `/lotes/{idLote}/eventos`
+**GET** `/api/v1/lotes/{idLote}/eventos`
+
+**🔒 Requer Autenticação**: Sim (Bearer Token)
+
+**Headers:**
+- `Authorization: Bearer <token>`
 
 **Response:**
 ```json
@@ -271,7 +486,12 @@ http://localhost:8080/api/v1
 
 ### 6. Verificar Abertura Enviada
 
-**GET** `/lotes/verificar-abertura?periodo=202401&ambiente=PROD`
+**GET** `/api/v1/lotes/verificar-abertura?periodo=202401&ambiente=PROD`
+
+**🔒 Requer Autenticação**: Sim (Bearer Token)
+
+**Headers:**
+- `Authorization: Bearer <token>`
 
 **Response:**
 ```json

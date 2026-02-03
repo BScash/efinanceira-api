@@ -18,17 +18,17 @@ public class PessoaContaService {
     
     public List<DadosPessoaConta> buscarPessoasComContas(Integer ano, Integer mesInicial, 
                                                           Integer mesFinal, Integer limit, Integer offset) {
-        validarParametrosBusca(ano, mesInicial, mesFinal, limit, offset);
+        validarParametrosBusca(mesInicial, mesFinal, limit, offset);
         return repository.buscarPessoasComContas(ano, mesInicial, mesFinal, limit, offset);
     }
     
     public TotaisMovimentacao calcularTotaisMovimentacao(Long idConta, Integer ano, 
                                                           Integer mesInicial, Integer mesFinal) {
-        validarParametrosTotais(idConta, ano, mesInicial, mesFinal);
+        validarParametrosTotais(idConta, mesInicial, mesFinal);
         return repository.calcularTotaisMovimentacao(idConta, ano, mesInicial, mesFinal);
     }
     
-    private void validarParametrosBusca(Integer ano, Integer mesInicial, Integer mesFinal, 
+    private void validarParametrosBusca(Integer mesInicial, Integer mesFinal, 
                                         Integer limit, Integer offset) {
         if (mesInicial < 1 || mesInicial > 12) {
             throw new IllegalArgumentException("Mês inicial inválido: " + mesInicial + ". Deve estar entre 1 e 12.");
@@ -50,7 +50,7 @@ public class PessoaContaService {
         }
     }
     
-    private void validarParametrosTotais(Long idConta, Integer ano, Integer mesInicial, Integer mesFinal) {
+    private void validarParametrosTotais(Long idConta, Integer mesInicial, Integer mesFinal) {
         if (idConta == null || idConta <= 0) {
             throw new IllegalArgumentException("ID da conta é obrigatório e deve ser maior que 0.");
         }

@@ -131,7 +131,10 @@ public class PessoaContaRepository {
     private String getString(java.sql.ResultSet rs, String columnName, String defaultValue) {
         try {
             String value = rs.getString(columnName);
-            return rs.wasNull() ? defaultValue : (value != null ? value : defaultValue);
+            if (rs.wasNull()) {
+                return defaultValue;
+            }
+            return value != null ? value : defaultValue;
         } catch (Exception e) {
             return defaultValue;
         }
@@ -140,7 +143,10 @@ public class PessoaContaRepository {
     private BigDecimal getBigDecimal(java.sql.ResultSet rs, String columnName) {
         try {
             BigDecimal value = rs.getBigDecimal(columnName);
-            return rs.wasNull() ? BigDecimal.ZERO : (value != null ? value : BigDecimal.ZERO);
+            if (rs.wasNull()) {
+                return BigDecimal.ZERO;
+            }
+            return value != null ? value : BigDecimal.ZERO;
         } catch (Exception e) {
             return BigDecimal.ZERO;
         }
