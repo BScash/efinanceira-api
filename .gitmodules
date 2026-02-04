@@ -1,0 +1,3 @@
+[submodule "groovyscripts"]
+	path = groovyscripts
+	url = https://github.com/BScash/jenkins-scripts.git
