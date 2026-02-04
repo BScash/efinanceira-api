@@ -26,6 +26,11 @@ spring:
           batch_size: 50
         order_inserts: true
         order_updates: true
+  
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
 
 server:
   port: 8080
@@ -54,9 +59,9 @@ logging:
 
 jwt:
   token:
-    secret: ${JWT_SECRET:~PUl^P7NvWme[&lt;&lt;}eHsdA*|&amp;*cvf|R4NN6QBlrigz3MhMa!o)TTTTTRRRRRRASDGV}
+    secret: ~PUl^P7NvWme[&lt;&lt;}eHsdA*|&amp;*cvf|R4NN6QBlrigz3MhMa!o)TTTTTRRRRRRASDGV
     expiration-time-in-minutes: ${JWT_EXPIRATION:1000}
 
 backoffice:
-  api:  
-    url: ${BACKOFFICE_API_URL:http://dev.bscash.com.br:8180/backoffice}
+  api:
+    url: ${BACKOFFICE_API_URL:http://localhost:8882}
