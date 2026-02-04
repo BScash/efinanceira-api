@@ -147,24 +147,22 @@ pipeline {
                     }
             }
         }
-
-
     }
-    post {
-        failure {
-            script {
-                def emails = env.MAIL_LIST.split(',').collect { it.trim() }
-                emailext (
-                    subject: 'Falha no Build',
-                    body: "O build falhou. Verifique os logs para mais informações.\n\nURL do build: ${env.BUILD_URL}",
-                    to: emails.join(','),
-                    attachLog: true,
-                    compressLog: true
-                )
-            }
-        }
-        success{
-            echo "Build concluído com sucesso"
-        }
-    }
+    // post {
+    //     failure {
+    //         script {
+    //             def emails = env.MAIL_LIST.split(',').collect { it.trim() }
+    //             emailext (
+    //                 subject: 'Falha no Build',
+    //                 body: "O build falhou. Verifique os logs para mais informações.\n\nURL do build: ${env.BUILD_URL}",
+    //                 to: emails.join(','),
+    //                 attachLog: true,
+    //                 compressLog: true
+    //             )
+    //         }
+    //     }
+    //     success{
+    //         echo "Build concluído com sucesso"
+    //     }
+    // }
 }
