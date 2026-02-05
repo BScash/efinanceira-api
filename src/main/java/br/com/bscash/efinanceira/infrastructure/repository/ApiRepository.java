@@ -160,7 +160,7 @@ public class ApiRepository {
                 """;
             return jdbcTemplate.query(sql, new MapSqlParameterSource(), new TbApiRowMapper());
         } catch (Exception e) {
-            log.warn("caiu no catch e deu problema'");
+            log.warn("caiu no catch e deu problema:", e.getMessage(), e);
             return List.of();
         }
     }
