@@ -44,10 +44,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health
+      discovery:
+        enabled: false
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: never
+  info:
+    enabled: false
 
 logging:
   level:
