@@ -28,7 +28,7 @@ A API disponibiliza os seguintes endpoints:
 - **PostgreSQL**: Banco de dados
 - **Spring Security**: Autenticação e autorização
 - **JWT (JSON Web Token)**: Tokens de autenticação
-- **Spring WebFlux**: Cliente HTTP reativo para comunicação com backoffice-api
+- **BCrypt**: Criptografia de senhas
 - **Spring AOP**: Programação orientada a aspectos para logging
 - **Lombok**: Redução de boilerplate
 - **Maven**: Gerenciamento de dependências
@@ -42,6 +42,7 @@ efinanceira-api/
 │   │   ├── java/br/com/bscash/efinanceira/
 │   │   │   ├── application/          # Camada de aplicação
 │   │   │   │   ├── aspect/           # Aspectos AOP (logging)
+│   │   │   │   ├── config/           # Configurações (Security, CORS, etc)
 │   │   │   │   ├── controller/       # Controllers REST
 │   │   │   │   └── exception/        # Tratamento de exceções
 │   │   │   ├── domain/                # Camada de domínio
@@ -49,7 +50,8 @@ efinanceira-api/
 │   │   │   │   ├── model/            # Modelos de domínio
 │   │   │   │   └── service/          # Serviços de negócio
 │   │   │   └── infrastructure/       # Camada de infraestrutura
-│   │   │       └── repository/       # Repositórios de dados
+│   │   │       ├── repository/       # Repositórios de dados
+│   │   │       └── util/             # Utilitários
 │   │   └── resources/
 │   │       └── application.yml        # Configurações
 │   └── test/                          # Testes
@@ -67,9 +69,9 @@ A API segue os princípios de **Clean Architecture** e **SOLID**:
 
 ### Camadas
 
-1. **Application**: Controllers, aspectos e tratamento de exceções
+1. **Application**: Controllers, aspectos, configurações e tratamento de exceções
 2. **Domain**: Lógica de negócio, modelos e DTOs
-3. **Infrastructure**: Acesso a dados (repositórios)
+3. **Infrastructure**: Acesso a dados (repositórios) e utilitários
 
 ## 🔧 Configuração
 
@@ -93,23 +95,18 @@ spring:
 
 ### Configuração de Autenticação
 
-A API utiliza autenticação JWT integrada com o backoffice-api. Configure as seguintes propriedades:
+A API utiliza autenticação JWT **independente e autônoma**. Configure as seguintes propriedades:
 
 ```yaml
 jwt:
   token:
-    # IMPORTANTE: O secret deve ser o mesmo usado no backoffice-api
     secret: ${JWT_SECRET:seu-secret-key}
     expiration-time-in-minutes: ${JWT_EXPIRATION:1000}
-
-backoffice:
-  api:
-    url: ${BACKOFFICE_API_URL:http://dev.bscash.com.br:8180/backoffice}
 ```
 
 **Variáveis de Ambiente:**
-- `JWT_SECRET`: Secret key para validação de tokens JWT (deve ser o mesmo do backoffice-api)
-- `BACKOFFICE_API_URL`: URL base do backoffice-api para autenticação
+- `JWT_SECRET`: Secret key para geração e validação de tokens JWT
+- `JWT_EXPIRATION`: Tempo de expiração do token em minutos (padrão: 1000)
 
 ### Executando a Aplicação
 
@@ -127,14 +124,24 @@ A API estará disponível em: `http://localhost:8080`
 
 ### Como Funciona a Autenticação
 
-A efinanceira-api utiliza autenticação JWT integrada com o **backoffice-api**. Todas as APIs protegidas requerem um token JWT válido obtido através do endpoint de autenticação.
+A efinanceira-api utiliza autenticação JWT **completamente autônoma**, sem dependência de serviços externos. Todas as APIs protegidas requerem um token JWT válido obtido através do endpoint de autenticação.
 
 #### Fluxo de Autenticação
 
 1. **Obter Token**: O cliente faz uma requisição POST para `/auth` com login e senha
-2. **Validação no Backoffice**: A efinanceira-api encaminha a requisição para o backoffice-api
-3. **Retorno do Token**: O backoffice-api retorna um token JWT válido
-4. **Uso do Token**: O cliente utiliza o token no header `Authorization: Bearer <token>` em todas as requisições protegidas
+2. **Validação Local**: A efinanceira-api busca o usuário no banco de dados (`controleacesso.tb_usuario`)
+3. **Validação de Senha**: A senha é validada usando BCrypt (mesmo algoritmo usado no backoffice)
+4. **Geração de Token**: Se as credenciais forem válidas, um token JWT é gerado localmente
+5. **Uso do Token**: O cliente utiliza o token no header `Authorization: Bearer <token>` em todas as requisições protegidas
+
+#### Validações Realizadas
+
+Durante a autenticação, o sistema verifica:
+- ✅ Existência do usuário no banco de dados
+- ✅ Usuário está ativo (situação = '1')
+- ✅ Usuário não está bloqueado
+- ✅ Senha está cadastrada
+- ✅ Senha informada corresponde à senha criptografada (BCrypt)
 
 #### Proteção das APIs
 
@@ -235,10 +242,11 @@ curl --location --request POST 'http://localhost:8080/api/v1/lotes/buscar' \
 A segurança é implementada através de:
 
 1. **AutenticacaoViaTokenFilter**: Filtro que intercepta todas as requisições e valida o token JWT no header `Authorization`
-2. **TokenService**: Serviço responsável por validar tokens JWT e extrair informações do usuário autenticado
-3. **AuthenticationService**: Serviço que faz a comunicação com o backoffice-api para autenticação inicial
-4. **WebSecurityConfiguration**: Configuração do Spring Security que define quais endpoints são públicos e quais requerem autenticação
-5. **CustomAuthenticationEntryPoint**: Tratamento de erros de autenticação, retornando respostas padronizadas
+2. **TokenService**: Serviço responsável por gerar, validar tokens JWT e extrair informações do usuário autenticado
+3. **AuthenticationService**: Serviço que realiza a autenticação local, validando credenciais no banco de dados
+4. **UsuarioRepository**: Repositório que busca usuários na tabela `controleacesso.tb_usuario`
+5. **WebSecurityConfiguration**: Configuração do Spring Security que define quais endpoints são públicos e quais requerem autenticação
+6. **CustomAuthenticationEntryPoint**: Tratamento de erros de autenticação, retornando respostas padronizadas
 
 #### Validação do Token
 
@@ -248,7 +256,9 @@ O token JWT é validado verificando:
 - ✅ Formato e estrutura do token
 - ✅ Presença do ID do usuário no subject do token
 
-**Importante**: O `jwt.token.secret` configurado na efinanceira-api **deve ser idêntico** ao secret usado no backoffice-api para que a validação funcione corretamente.
+#### Criptografia de Senhas
+
+As senhas são armazenadas no banco de dados usando **BCrypt**, o mesmo algoritmo utilizado no backoffice, garantindo compatibilidade total. A validação é feita localmente, sem necessidade de comunicação com serviços externos.
 
 ## 📚 Endpoints da API
 
@@ -263,8 +273,6 @@ http://localhost:8080/api/v1
 
 **Headers:**
 - `Content-Type: application/json`
-- `User-Agent` (opcional)
-- `X-Real-IP` (opcional)
 
 **Request Body:**
 ```json
@@ -291,6 +299,12 @@ http://localhost:8080/api/v1
 ```
 
 **⚠️ Nota**: Este endpoint é público e não requer autenticação.
+
+**Possíveis Erros:**
+- `400 Bad Request`: Credenciais inválidas (usuário não encontrado ou senha incorreta)
+- `400 Bad Request`: Usuário inativo
+- `400 Bad Request`: Usuário bloqueado
+- `400 Bad Request`: Senha não cadastrada
 
 ---
 
@@ -583,6 +597,16 @@ Para executar o JAR gerado:
 ```bash
 java -jar target/efinanceira-api-1.0.0.jar
 ```
+
+## 🔄 Mudanças Recentes
+
+### Versão Atual - Autenticação Autônoma
+
+- ✅ **Autenticação independente**: A API agora realiza autenticação localmente, sem depender do backoffice
+- ✅ **Validação BCrypt**: Senhas são validadas usando BCrypt, garantindo compatibilidade com o backoffice
+- ✅ **Geração de tokens local**: Tokens JWT são gerados diretamente na API
+- ✅ **Remoção de dependências**: Removida a dependência do Spring WebFlux e comunicação HTTP com backoffice
+- ✅ **Repositório de usuários**: Implementado `UsuarioRepository` para buscar usuários no banco de dados
 
 ## 📄 Licença
 
