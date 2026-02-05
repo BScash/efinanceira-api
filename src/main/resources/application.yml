@@ -61,7 +61,3 @@ jwt:
   token:
     secret: ~PUl^P7NvWme[&lt;&lt;}eHsdA*|&amp;*cvf|R4NN6QBlrigz3MhMa!o)TTTTTRRRRRRASDGV
     expiration-time-in-minutes: ${JWT_EXPIRATION:1000}
-
-backoffice:
-  api:
-    url: ${BACKOFFICE_API_URL:http://localhost:8882}
