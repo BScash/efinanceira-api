@@ -1,6 +1,8 @@
 package br.com.bscash.efinanceira.infrastructure.repository;
 
 import br.com.bscash.efinanceira.domain.model.TbApi;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -13,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Repository
 public class ApiRepository {
     
@@ -157,6 +160,7 @@ public class ApiRepository {
                 """;
             return jdbcTemplate.query(sql, new MapSqlParameterSource(), new TbApiRowMapper());
         } catch (Exception e) {
+            log.warn("caiu no catch e deu problema'");
             return List.of();
         }
     }
