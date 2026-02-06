@@ -18,11 +18,9 @@ public class AuthenticationController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<LoginModel>> autenticar(
-            @RequestBody @Valid LoginRequest loginRequest,
-            @RequestHeader(value = "User-Agent", required = false) String userAgent,
-            @RequestHeader(value = "X-Real-IP", required = false) String clientIp) {
+            @RequestBody @Valid LoginRequest loginRequest) {
         
-        LoginModel loginModel = authenticationService.autenticar(loginRequest, userAgent, clientIp);
+        LoginModel loginModel = authenticationService.autenticar(loginRequest);
         return ResponseEntity.ok(ApiResponse.success("Autenticação realizada com sucesso", loginModel));
     }
 }

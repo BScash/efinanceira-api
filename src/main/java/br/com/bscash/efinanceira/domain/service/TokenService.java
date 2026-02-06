@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -21,6 +23,9 @@ public class TokenService {
 
     @Value("${jwt.token.secret}")
     private String jwtSecret;
+    
+    @Value("${jwt.token.expiration-time-in-minutes:1000}")
+    private Long expirationTimeInMinutes;
     
     @PostConstruct
     public void init() {
@@ -70,5 +75,28 @@ public class TokenService {
         } catch (NumberFormatException e) {
             throw new TokenInvalidoException("Formato do token inválido: ID do usuário não encontrado", e);
         }
+    }
+    
+    public String gerarToken(Long idUsuario) {
+        if (jwtSecret == null || jwtSecret.isEmpty()) {
+            log.error("JWT secret não configurado!");
+            throw new IllegalStateException("JWT secret não configurado");
+        }
+        
+        SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+        
+        Date agora = new Date();
+        Date expiracao = new Date(agora.getTime() + (expirationTimeInMinutes * 60 * 1000));
+        
+        return Jwts.builder()
+                .subject(idUsuario.toString())
+                .issuedAt(agora)
+                .expiration(expiracao)
+                .signWith(key)
+                .compact();
+    }
+    
+    public String gerarRefreshToken() {
+        return UUID.randomUUID().toString();
     }
 }

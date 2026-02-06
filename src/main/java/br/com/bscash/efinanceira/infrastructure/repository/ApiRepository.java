@@ -1,6 +1,8 @@
 package br.com.bscash.efinanceira.infrastructure.repository;
 
 import br.com.bscash.efinanceira.domain.model.TbApi;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -13,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Repository
 public class ApiRepository {
     
@@ -65,6 +68,110 @@ public class ApiRepository {
             return resultados.isEmpty() ? Optional.empty() : Optional.of(resultados.get(0));
         } catch (Exception e) {
             return Optional.empty();
+        }
+    }
+    
+    public String verificarBancoAtual() {
+        try {
+            String sql = "SELECT current_database() AS banco_atual";
+            return jdbcTemplate.queryForObject(sql, new MapSqlParameterSource(), String.class);
+        } catch (Exception e) {
+            return "ERRO ao verificar banco: " + e.getMessage();
+        }
+    }
+    
+    public List<String> listarSchemas() {
+        try {
+            String sql = "SELECT schema_name FROM information_schema.schemata ORDER BY schema_name";
+            return jdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> rs.getString("schema_name"));
+        } catch (Exception e) {
+            return List.of("ERRO ao listar schemas: " + e.getMessage());
+        }
+    }
+    
+    public boolean verificarSchemaManager() {
+        try {
+            String sql = "SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'manager') AS existe";
+            Boolean existe = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource(), Boolean.class);
+            return Boolean.TRUE.equals(existe);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    public List<String> listarTabelasManager() {
+        try {
+            String sql = """
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'manager' 
+                ORDER BY table_name
+                """;
+            return jdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> rs.getString("table_name"));
+        } catch (Exception e) {
+            return List.of("ERRO ao listar tabelas: " + e.getMessage());
+        }
+    }
+    
+    public boolean verificarTabelaTbApi() {
+        try {
+            String sql = """
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.tables 
+                    WHERE table_schema = 'manager' AND table_name = 'tb_api'
+                ) AS existe
+                """;
+            Boolean existe = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource(), Boolean.class);
+            return Boolean.TRUE.equals(existe);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    public List<TbApi> listarTodosRegistrosTbApi() {
+        try {
+            String sql = """
+                SELECT 
+                    idapi,
+                    apikey,
+                    dataalteracao,
+                    dataalteracaosituacao,
+                    datainclusao,
+                    situacao,
+                    baseuri,
+                    baseuriauthentication,
+                    clientid,
+                    dataexpiracao,
+                    documentacao,
+                    nome,
+                    refreshtoken,
+                    secretkey,
+                    tokenapi,
+                    tokencallback,
+                    tokentype,
+                    urlcallback,
+                    userid,
+                    idusuarioalteracaosituacao,
+                    idusuarioalteracao,
+                    idusuarioinclusao,
+                    chaveprivada
+                FROM manager.tb_api
+                ORDER BY idapi
+                """;
+            return jdbcTemplate.query(sql, new MapSqlParameterSource(), new TbApiRowMapper());
+        } catch (Exception e) {
+            log.warn("caiu no catch e deu problema:", e.getMessage(), e);
+            return List.of();
+        }
+    }
+    
+    public int contarRegistrosTbApi() {
+        try {
+            String sql = "SELECT COUNT(*) FROM manager.tb_api";
+            Integer count = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource(), Integer.class);
+            return count != null ? count : 0;
+        } catch (Exception e) {
+            return -1;
         }
     }
     
