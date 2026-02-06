@@ -31,4 +31,12 @@ public class EventoBancoInfo {
     private String numeroRecibo;
     private Integer indRetificacao;
     private Boolean ehRetificacao;
+    
+    private String situacao;
+    private Long idUsuarioInclusao;
+    private Long idUsuarioAlteracao;
+    private Long idUsuarioAlteracaoSituacao;
+    private LocalDateTime dataInclusao;
+    private LocalDateTime dataAlteracao;
+    private LocalDateTime dataAlteracaoSituacao;
 }
