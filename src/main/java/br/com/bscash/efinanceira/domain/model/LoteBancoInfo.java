@@ -36,4 +36,12 @@ public class LoteBancoInfo {
     private Integer totalEventosComErro;
     private Integer totalEventosSucesso;
     private Boolean ehRetificacao;
+    
+    private String situacao;
+    private Long idUsuarioInclusao;
+    private Long idUsuarioAlteracao;
+    private Long idUsuarioAlteracaoSituacao;
+    private LocalDateTime dataInclusao;
+    private LocalDateTime dataAlteracao;
+    private LocalDateTime dataAlteracaoSituacao;
 }
