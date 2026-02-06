@@ -41,6 +41,13 @@ public class LoteRepository {
             l.dataconfirmacao,
             l.id_lote_original,
             l.caminhoarquivolotexml,
+            l.situacao,
+            l.idusuarioinclusao,
+            l.idusuarioalteracao,
+            l.idusuarioalteracaosituacao,
+            l.datainclusao,
+            l.dataalteracao,
+            l.dataalteracaosituacao,
             COUNT(DISTINCT e.idevento) as total_eventos_registrados,
             COUNT(DISTINCT CASE WHEN e.cpf IS NOT NULL AND e.cpf != '' THEN e.cpf END) as total_eventos_com_cpf,
             COUNT(DISTINCT CASE WHEN e.statusevento = 'ERRO' THEN e.idevento END) as total_eventos_com_erro,
@@ -68,7 +75,14 @@ public class LoteRepository {
             l.dataenvio,
             l.dataconfirmacao,
             l.id_lote_original,
-            l.caminhoarquivolotexml
+            l.caminhoarquivolotexml,
+            l.situacao,
+            l.idusuarioinclusao,
+            l.idusuarioalteracao,
+            l.idusuarioalteracaosituacao,
+            l.datainclusao,
+            l.dataalteracao,
+            l.dataalteracaosituacao
         FROM efinanceira.tb_efinanceira_lote l
         WHERE l.protocoloenvio = :protocolo
         ORDER BY l.datacriacao DESC
@@ -93,7 +107,14 @@ public class LoteRepository {
             e.ocorrenciasefinanceirajson,
             e.datacriacao,
             e.numerorecibo,
-            e.indretificacao
+            e.indretificacao,
+            e.situacao,
+            e.idusuarioinclusao,
+            e.idusuarioalteracao,
+            e.idusuarioalteracaosituacao,
+            e.datainclusao,
+            e.dataalteracao,
+            e.dataalteracaosituacao
         FROM efinanceira.tb_efinanceira_evento e
         WHERE e.idlote = :idLote
         ORDER BY e.idevento
@@ -163,7 +184,9 @@ public class LoteRepository {
                      l.cnpjdeclarante, l.protocoloenvio, l.status, l.ambiente,
                      l.codigorespostaenvio, l.descricaorespostaenvio, l.codigorespostaconsulta,
                      l.descricaorespostaconsulta, l.datacriacao, l.dataenvio, l.dataconfirmacao,
-                     l.id_lote_original, l.caminhoarquivolotexml
+                     l.id_lote_original, l.caminhoarquivolotexml, l.situacao, l.idusuarioinclusao,
+                     l.idusuarioalteracao, l.idusuarioalteracaosituacao, l.datainclusao,
+                     l.dataalteracao, l.dataalteracaosituacao
             ORDER BY l.datacriacao DESC
             """);
         
@@ -241,6 +264,13 @@ public class LoteRepository {
                     .totalEventosComErro(getInteger(rs, "total_eventos_com_erro", 0))
                     .totalEventosSucesso(getInteger(rs, "total_eventos_sucesso", 0))
                     .ehRetificacao(getLong(rs, "id_lote_original") != null)
+                    .situacao(getString(rs, "situacao"))
+                    .idUsuarioInclusao(getLong(rs, "idusuarioinclusao"))
+                    .idUsuarioAlteracao(getLong(rs, "idusuarioalteracao"))
+                    .idUsuarioAlteracaoSituacao(getLong(rs, "idusuarioalteracaosituacao"))
+                    .dataInclusao(getLocalDateTime(rs, "datainclusao"))
+                    .dataAlteracao(getLocalDateTime(rs, "dataalteracao"))
+                    .dataAlteracaoSituacao(getLocalDateTime(rs, "dataalteracaosituacao"))
                     .build();
         };
     }
@@ -265,6 +295,13 @@ public class LoteRepository {
                 .numeroRecibo(getString(rs, "numerorecibo"))
                 .indRetificacao(getInteger(rs, "indretificacao", 0))
                 .ehRetificacao(getInteger(rs, "indretificacao", 0) > 0)
+                .situacao(getString(rs, "situacao"))
+                .idUsuarioInclusao(getLong(rs, "idusuarioinclusao"))
+                .idUsuarioAlteracao(getLong(rs, "idusuarioalteracao"))
+                .idUsuarioAlteracaoSituacao(getLong(rs, "idusuarioalteracaosituacao"))
+                .dataInclusao(getLocalDateTime(rs, "datainclusao"))
+                .dataAlteracao(getLocalDateTime(rs, "dataalteracao"))
+                .dataAlteracaoSituacao(getLocalDateTime(rs, "dataalteracaosituacao"))
                 .build();
     }
     
