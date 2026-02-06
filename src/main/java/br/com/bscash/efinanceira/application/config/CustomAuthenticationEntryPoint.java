@@ -13,6 +13,12 @@ import java.io.OutputStream;
 
 public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
+    private final ObjectMapper objectMapper;
+
+    public CustomAuthenticationEntryPoint(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException authException) throws IOException, ServletException {
@@ -24,8 +30,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
         ApiResponse<?> apiResponse = ApiResponse.error("Token inválido ou ausente. Autenticação necessária.");
 
         OutputStream responseStream = response.getOutputStream();
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.writeValue(responseStream, apiResponse);
+        objectMapper.writeValue(responseStream, apiResponse);
         responseStream.flush();
     }
 }

@@ -1,6 +1,8 @@
 package br.com.bscash.efinanceira.application.config;
 
 import br.com.bscash.efinanceira.domain.service.TokenService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -10,6 +12,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -17,14 +20,17 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 public class WebSecurityConfiguration {
     
     private final TokenService tokenService;
+    private final ObjectMapper objectMapper;
 
-    public WebSecurityConfiguration(TokenService tokenService) {
+    public WebSecurityConfiguration(TokenService tokenService, ObjectMapper objectMapper) {
         this.tokenService = tokenService;
+        this.objectMapper = objectMapper;
     }
 
     @Bean
@@ -43,14 +49,21 @@ public class WebSecurityConfiguration {
         .csrf(AbstractHttpConfigurer::disable)
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .addFilterBefore(autenticacaoViaTokenFilter(), UsernamePasswordAuthenticationFilter.class)
-        .exceptionHandling(ex -> ex.authenticationEntryPoint(authenticationEntryPoint()));
+        .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(authenticationEntryPoint())
+                .accessDeniedHandler(accessDeniedHandler()));
         
         return http.build();
+    }
+    
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler() {
+        return new CustomAccessDeniedHandler(objectMapper);
     }
 
     @Bean
     public AuthenticationEntryPoint authenticationEntryPoint(){
-        return new CustomAuthenticationEntryPoint();
+        return new CustomAuthenticationEntryPoint(objectMapper);
     }
 
     @Bean

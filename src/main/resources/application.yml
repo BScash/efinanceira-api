@@ -5,7 +5,7 @@ spring:
   datasource:
     url: jdbc:postgresql://10.30.0.21:5432/bscash
     username: nickolas.oliveira
-    password: 1QclT+-IVB2B
+    password: 
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
@@ -16,8 +16,8 @@ spring:
       leak-detection-threshold: 60000
   
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: false
+    open-in-view: false
     properties:
       hibernate:
         format_sql: true
@@ -26,6 +26,11 @@ spring:
           batch_size: 50
         order_inserts: true
         order_updates: true
+  
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
 
 server:
   port: 8080
@@ -39,10 +44,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health
+      discovery:
+        enabled: false
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: never
+  info:
+    enabled: false
 
 logging:
   level:
@@ -54,9 +63,5 @@ logging:
 
 jwt:
   token:
-    secret: ${JWT_SECRET:~PUl^P7NvWme[&lt;&lt;}eHsdA*|&amp;*cvf|R4NN6QBlrigz3MhMa!o)TTTTTRRRRRRASDGV}
+    secret: ~PUl^P7NvWme[&lt;&lt;}eHsdA*|&amp;*cvf|R4NN6QBlrigz3MhMa!o)TTTTTRRRRRRASDGV
     expiration-time-in-minutes: ${JWT_EXPIRATION:1000}
-
-backoffice:
-  api:  
-    url: ${BACKOFFICE_API_URL:http://dev.bscash.com.br:8180/backoffice}
