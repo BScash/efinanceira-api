@@ -21,10 +21,6 @@ public class LoteService {
     
     public List<LoteBancoInfo> buscarLotes(LocalDateTime dataInicio, LocalDateTime dataFim, 
                                           String periodo, String ambiente, Integer limite) {
-        if (dataInicio == null || dataFim == null) {
-            throw new IllegalArgumentException("Data início e data fim são obrigatórias.");
-        }
-        
         return repository.buscarLotes(dataInicio, dataFim, periodo, ambiente, limite);
     }
     

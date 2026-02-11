@@ -149,10 +149,15 @@ public class LoteRepository {
         List<String> whereConditions = new ArrayList<>();
         MapSqlParameterSource params = new MapSqlParameterSource();
         
-        whereConditions.add("l.datacriacao >= :dataInicio");
-        whereConditions.add("l.datacriacao <= :dataFim");
-        params.addValue("dataInicio", dataInicio);
-        params.addValue("dataFim", dataFim);
+        if (dataInicio != null) {
+            whereConditions.add("l.datacriacao >= :dataInicio");
+            params.addValue("dataInicio", dataInicio);
+        }
+        
+        if (dataFim != null) {
+            whereConditions.add("l.datacriacao <= :dataFim");
+            params.addValue("dataFim", dataFim);
+        }
         
         if (periodo != null && !periodo.isBlank()) {
             whereConditions.add("l.periodo = :" + PARAM_PERIODO);
@@ -169,7 +174,10 @@ public class LoteRepository {
             }
         }
         
-        sql.append(" WHERE ").append(String.join(" AND ", whereConditions));
+        if (!whereConditions.isEmpty()) {
+            sql.append(" WHERE ").append(String.join(" AND ", whereConditions));
+        }
+        
         sql.append(" GROUP BY l.idlote, l.periodo, l.semestre, l.numerolote, l.quantidadeeventos,");
         sql.append(" l.cnpjdeclarante, l.protocoloenvio, l.status, l.ambiente,");
         sql.append(" l.codigorespostaenvio, l.descricaorespostaenvio, l.codigorespostaconsulta,");
