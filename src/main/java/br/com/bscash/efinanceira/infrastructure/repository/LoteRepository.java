@@ -170,17 +170,14 @@ public class LoteRepository {
         }
         
         sql.append(" WHERE ").append(String.join(" AND ", whereConditions));
-        
-        sql.append("""
-            GROUP BY l.idlote, l.periodo, l.semestre, l.numerolote, l.quantidadeeventos,
-                     l.cnpjdeclarante, l.protocoloenvio, l.status, l.ambiente,
-                     l.codigorespostaenvio, l.descricaorespostaenvio, l.codigorespostaconsulta,
-                     l.descricaorespostaconsulta, l.datacriacao, l.dataenvio, l.dataconfirmacao,
-                     l.id_lote_original, l.caminhoarquivolotexml, l.situacao, l.idusuarioinclusao,
-                     l.idusuarioalteracao, l.idusuarioalteracaosituacao, l.datainclusao,
-                     l.dataalteracao, l.dataalteracaosituacao
-            ORDER BY l.datacriacao DESC
-            """);
+        sql.append(" GROUP BY l.idlote, l.periodo, l.semestre, l.numerolote, l.quantidadeeventos,");
+        sql.append(" l.cnpjdeclarante, l.protocoloenvio, l.status, l.ambiente,");
+        sql.append(" l.codigorespostaenvio, l.descricaorespostaenvio, l.codigorespostaconsulta,");
+        sql.append(" l.descricaorespostaconsulta, l.datacriacao, l.dataenvio, l.dataconfirmacao,");
+        sql.append(" l.id_lote_original, l.caminhoarquivolotexml, l.situacao, l.idusuarioinclusao,");
+        sql.append(" l.idusuarioalteracao, l.idusuarioalteracaosituacao, l.datainclusao,");
+        sql.append(" l.dataalteracao, l.dataalteracaosituacao");
+        sql.append(" ORDER BY l.datacriacao DESC");
         
         if (limite != null && limite > 0) {
             sql.append(" LIMIT :limite");
