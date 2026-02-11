@@ -159,12 +159,13 @@ public class LoteRepository {
             params.addValue(PARAM_PERIODO, periodo);
         }
         
-        if (ambiente != null && !ambiente.isBlank()) {
-            if ("TEST".equalsIgnoreCase(ambiente) || "TESTE".equalsIgnoreCase(ambiente)) {
-                whereConditions.add("(l.ambiente = 'TEST' OR l.ambiente = 'HOMOLOG')");
+        if (ambiente != null && !ambiente.trim().isEmpty()) {
+            String ambienteUpper = ambiente.trim().toUpperCase();
+            if ("TEST".equals(ambienteUpper) || "TESTE".equals(ambienteUpper)) {
+                whereConditions.add("l.ambiente = 'HOMOLOG'");
             } else {
                 whereConditions.add("l.ambiente = :" + PARAM_AMBIENTE);
-                params.addValue(PARAM_AMBIENTE, ambiente);
+                params.addValue(PARAM_AMBIENTE, ambienteUpper);
             }
         }
         
@@ -355,10 +356,9 @@ public class LoteRepository {
         }
         
         if (updates.isEmpty()) {
-            return; // Nada para atualizar
+            return;
         }
         
-        // Sempre atualizar data de alteração e usuário
         updates.add("dataalteracao = :dataAlteracao");
         updates.add("idusuarioalteracao = :idUsuarioAlteracao");
         params.addValue("dataAlteracao", LocalDateTime.now());
