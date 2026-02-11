@@ -49,6 +49,69 @@ public class EventoRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
     
+    public Long registrarEvento(Long idLote, Long idPessoa, Long idConta, String cpf, String nome,
+                                Long numeroConta, String digitoConta, BigDecimal saldoAtual,
+                                BigDecimal totCreditos, BigDecimal totDebitos, String idEventoXml,
+                                String statusEvento, String ocorrenciasJson, String numeroRecibo,
+                                Integer indRetificacao, Long idUsuarioInclusao) {
+        LocalDateTime agora = LocalDateTime.now();
+        String cpfNormalizado = normalizarCpf(cpf);
+        String statusFinal = (statusEvento != null && !statusEvento.isBlank()) 
+                            ? statusEvento.toUpperCase() 
+                            : "GERADO";
+        Integer indRetificacaoFinal = (indRetificacao != null) ? indRetificacao : 0;
+        
+        String sql = """
+            INSERT INTO efinanceira.tb_efinanceira_evento 
+                (idlote, idpessoa, idconta, cpf, nome, numeroconta, digitoconta,
+                 saldoatual, totcreditos, totdebitos, ideventoxml, statusevento,
+                 ocorrenciasefinanceirajson, numerorecibo, indretificacao,
+                 datacriacao, situacao, idusuarioinclusao, datainclusao)
+            VALUES 
+                (:idLote, :idPessoa, :idConta, :cpf, :nome, :numeroConta, :digitoConta,
+                 :saldoAtual, :totCreditos, :totDebitos, :idEventoXml, :statusEvento,
+                 :ocorrenciasJson, :numeroRecibo, :indRetificacao,
+                 :dataCriacao, '1', :idUsuarioInclusao, :dataInclusao)
+            RETURNING idevento
+            """;
+        
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("idLote", idLote)
+                .addValue("idPessoa", idPessoa)
+                .addValue("idConta", idConta)
+                .addValue("cpf", cpfNormalizado)
+                .addValue("nome", nome)
+                .addValue("numeroConta", numeroConta)
+                .addValue("digitoConta", digitoConta)
+                .addValue("saldoAtual", saldoAtual)
+                .addValue("totCreditos", totCreditos)
+                .addValue("totDebitos", totDebitos)
+                .addValue("idEventoXml", idEventoXml)
+                .addValue("statusEvento", statusFinal)
+                .addValue("ocorrenciasJson", ocorrenciasJson)
+                .addValue("numeroRecibo", numeroRecibo)
+                .addValue("indRetificacao", indRetificacaoFinal)
+                .addValue("dataCriacao", agora)
+                .addValue("idUsuarioInclusao", idUsuarioInclusao)
+                .addValue("dataInclusao", agora);
+        
+        return jdbcTemplate.queryForObject(sql, params, Long.class);
+    }
+    
+    private String normalizarCpf(String cpf) {
+        if (cpf == null || cpf.isBlank()) {
+            return null;
+        }
+        
+        String cpfLimpo = cpf.replaceAll("[^0-9]", "");
+        
+        if (cpfLimpo.length() > 11) {
+            cpfLimpo = cpfLimpo.substring(0, 11);
+        }
+        
+        return cpfLimpo.isBlank() ? null : cpfLimpo;
+    }
+    
     public List<EventoBancoInfo> buscarEventos(Long idLote, Long idPessoa, Long idConta, 
                                                 String cpf, String nome, String statusEvento,
                                                 String numeroRecibo, Boolean ehRetificacao,
