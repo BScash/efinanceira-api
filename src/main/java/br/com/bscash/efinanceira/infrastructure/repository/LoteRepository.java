@@ -240,6 +240,10 @@ public class LoteRepository {
         Integer semestre = calcularSemestre(periodo);
         LocalDateTime agora = LocalDateTime.now();
         
+        if (numeroLote == null) {
+            numeroLote = obterProximoNumeroLote(periodo, ambiente);
+        }
+        
         String sql = """
             INSERT INTO efinanceira.tb_efinanceira_lote 
                 (periodo, semestre, numerolote, quantidadeeventos, cnpjdeclarante, 
@@ -253,12 +257,12 @@ public class LoteRepository {
             """;
         
         MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("periodo", periodo)
+                .addValue(PARAM_PERIODO, periodo)
                 .addValue("semestre", semestre)
                 .addValue("numeroLote", numeroLote)
                 .addValue("quantidadeEventos", quantidadeEventos)
                 .addValue("cnpjDeclarante", cnpjDeclarante)
-                .addValue("ambiente", ambiente)
+                .addValue(PARAM_AMBIENTE, ambiente)
                 .addValue("caminhoArquivoXml", caminhoArquivoXml)
                 .addValue("idLoteOriginal", idLoteOriginal)
                 .addValue("dataCriacao", agora)
@@ -266,6 +270,22 @@ public class LoteRepository {
                 .addValue("dataInclusao", agora);
         
         return jdbcTemplate.queryForObject(sql, params, Long.class);
+    }
+    
+    private Integer obterProximoNumeroLote(String periodo, String ambiente) {
+        String sql = """
+            SELECT COALESCE(MAX(numerolote), 0) + 1
+            FROM efinanceira.tb_efinanceira_lote
+            WHERE periodo = :periodo
+              AND ambiente = :ambiente
+            """;
+        
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue(PARAM_PERIODO, periodo)
+                .addValue(PARAM_AMBIENTE, ambiente);
+        
+        Integer proximoNumero = jdbcTemplate.queryForObject(sql, params, Integer.class);
+        return proximoNumero != null ? proximoNumero : 1;
     }
     
     private Integer calcularSemestre(String periodo) {
