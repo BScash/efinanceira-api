@@ -234,6 +234,55 @@ public class LoteRepository {
         return temProtocolo && respostaOk;
     }
     
+    public Long registrarLote(String periodo, Integer quantidadeEventos, String cnpjDeclarante,
+                             String caminhoArquivoXml, String ambiente, Integer numeroLote,
+                             Long idLoteOriginal, Long idUsuarioInclusao) {
+        Integer semestre = calcularSemestre(periodo);
+        LocalDateTime agora = LocalDateTime.now();
+        
+        String sql = """
+            INSERT INTO efinanceira.tb_efinanceira_lote 
+                (periodo, semestre, numerolote, quantidadeeventos, cnpjdeclarante, 
+                 status, ambiente, caminhoarquivolotexml, id_lote_original,
+                 datacriacao, situacao, idusuarioinclusao, datainclusao)
+            VALUES 
+                (:periodo, :semestre, :numeroLote, :quantidadeEventos, :cnpjDeclarante,
+                 'GERADO', :ambiente, :caminhoArquivoXml, :idLoteOriginal,
+                 :dataCriacao, '1', :idUsuarioInclusao, :dataInclusao)
+            RETURNING idlote
+            """;
+        
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("periodo", periodo)
+                .addValue("semestre", semestre)
+                .addValue("numeroLote", numeroLote)
+                .addValue("quantidadeEventos", quantidadeEventos)
+                .addValue("cnpjDeclarante", cnpjDeclarante)
+                .addValue("ambiente", ambiente)
+                .addValue("caminhoArquivoXml", caminhoArquivoXml)
+                .addValue("idLoteOriginal", idLoteOriginal)
+                .addValue("dataCriacao", agora)
+                .addValue("idUsuarioInclusao", idUsuarioInclusao)
+                .addValue("dataInclusao", agora);
+        
+        return jdbcTemplate.queryForObject(sql, params, Long.class);
+    }
+    
+    private Integer calcularSemestre(String periodo) {
+        if (periodo == null || periodo.length() < 6) {
+            return 0;
+        }
+        
+        try {
+            int mes = Integer.parseInt(periodo.substring(4, 6));
+            if (mes == 1 || mes == 6) return 1;
+            if (mes == 2 || mes == 12) return 2;
+            return 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+    
     private RowMapper<LoteBancoInfo> loteRowMapper() {
         return (rs, rowNum) -> {
             String caminhoArquivo = getString(rs, "caminhoarquivolotexml");

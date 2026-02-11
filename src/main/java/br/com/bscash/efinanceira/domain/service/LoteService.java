@@ -1,8 +1,10 @@
 package br.com.bscash.efinanceira.domain.service;
 
+import br.com.bscash.efinanceira.domain.dto.RegistrarLoteRequest;
 import br.com.bscash.efinanceira.domain.model.EventoBancoInfo;
 import br.com.bscash.efinanceira.domain.model.LoteBancoInfo;
 import br.com.bscash.efinanceira.infrastructure.repository.LoteRepository;
+import br.com.bscash.efinanceira.infrastructure.util.AuditoriaUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,7 +15,6 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class LoteService {
     
     private final LoteRepository repository;
@@ -46,6 +47,42 @@ public class LoteService {
             throw new IllegalArgumentException("Ambiente é obrigatório.");
         }
         return repository.verificarAberturaEnviadaParaPeriodo(periodo, ambiente);
+    }
+    
+    @Transactional
+    public Long registrarLote(RegistrarLoteRequest request) {
+        validarRegistrarLoteRequest(request);
+        
+        Long idUsuarioInclusao = AuditoriaUtil.obterIdUsuarioAutenticado();
+        
+        return repository.registrarLote(
+            request.getPeriodo(),
+            request.getQuantidadeEventos(),
+            request.getCnpjDeclarante(),
+            request.getCaminhoArquivoXml(),
+            request.getAmbiente(),
+            request.getNumeroLote(),
+            request.getIdLoteOriginal(),
+            idUsuarioInclusao
+        );
+    }
+    
+    private void validarRegistrarLoteRequest(RegistrarLoteRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Request não pode ser nulo.");
+        }
+        if (request.getQuantidadeEventos() == null || request.getQuantidadeEventos() <= 0) {
+            throw new IllegalArgumentException("Quantidade de eventos é obrigatória e deve ser maior que zero.");
+        }
+        if (request.getCnpjDeclarante() == null || request.getCnpjDeclarante().isBlank()) {
+            throw new IllegalArgumentException("CNPJ do declarante é obrigatório.");
+        }
+        if (request.getCaminhoArquivoXml() == null || request.getCaminhoArquivoXml().isBlank()) {
+            throw new IllegalArgumentException("Caminho do arquivo XML é obrigatório.");
+        }
+        if (request.getAmbiente() == null || request.getAmbiente().isBlank()) {
+            throw new IllegalArgumentException("Ambiente é obrigatório.");
+        }
     }
     
     private DatasAjustadas ajustarDatas(LocalDateTime dataInicio, LocalDateTime dataFim) {
