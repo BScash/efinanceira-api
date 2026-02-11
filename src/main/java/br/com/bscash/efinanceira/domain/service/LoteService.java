@@ -1,5 +1,6 @@
 package br.com.bscash.efinanceira.domain.service;
 
+import br.com.bscash.efinanceira.domain.dto.AtualizarLoteRequest;
 import br.com.bscash.efinanceira.domain.dto.RegistrarLoteRequest;
 import br.com.bscash.efinanceira.domain.model.EventoBancoInfo;
 import br.com.bscash.efinanceira.domain.model.LoteBancoInfo;
@@ -64,6 +65,36 @@ public class LoteService {
             request.getNumeroLote(),
             request.getIdLoteOriginal(),
             idUsuarioInclusao
+        );
+    }
+    
+    @Transactional
+    public void atualizarLote(Long idLote, AtualizarLoteRequest request) {
+        if (idLote == null || idLote <= 0) {
+            throw new IllegalArgumentException("ID do lote é obrigatório e deve ser maior que 0.");
+        }
+        if (request == null) {
+            throw new IllegalArgumentException("Request não pode ser nulo.");
+        }
+        
+        Long idUsuarioAlteracao = AuditoriaUtil.obterIdUsuarioAutenticado();
+        
+        repository.atualizarLote(
+            idLote,
+            request.getStatus(),
+            request.getProtocoloEnvio(),
+            request.getCodigoRespostaEnvio(),
+            request.getDescricaoRespostaEnvio(),
+            request.getXmlRespostaEnvio(),
+            request.getCodigoRespostaConsulta(),
+            request.getDescricaoRespostaConsulta(),
+            request.getXmlRespostaConsulta(),
+            request.getDataEnvio(),
+            request.getDataConfirmacao(),
+            request.getUltimoErro(),
+            request.getCaminhoArquivoAssinado(),
+            request.getCaminhoArquivoCriptografado(),
+            idUsuarioAlteracao
         );
     }
     
