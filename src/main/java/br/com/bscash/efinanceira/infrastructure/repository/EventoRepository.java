@@ -243,6 +243,7 @@ public class EventoRepository {
                             ? p.getStatusEvento().toUpperCase() 
                             : "GERADO";
         Integer indRetificacaoFinal = (p.getIndRetificacao() != null) ? p.getIndRetificacao() : 0;
+        String numeroReciboNormalizado = normalizarNumeroRecibo(p.getNumeroRecibo());
         
         String sql = """
             INSERT INTO efinanceira.tb_efinanceira_evento 
@@ -272,7 +273,7 @@ public class EventoRepository {
                 .addValue("idEventoXml", p.getIdEventoXml())
                 .addValue(PARAM_STATUS_EVENTO, statusFinal)
                 .addValue(PARAM_OCORRENCIAS_JSON, p.getOcorrenciasJson())
-                .addValue(PARAM_NUMERO_RECIBO, p.getNumeroRecibo())
+                .addValue(PARAM_NUMERO_RECIBO, numeroReciboNormalizado)
                 .addValue("indRetificacao", indRetificacaoFinal)
                 .addValue("dataCriacao", agora)
                 .addValue("idUsuarioInclusao", p.getIdUsuarioInclusao())
@@ -293,6 +294,13 @@ public class EventoRepository {
         }
         
         return cpfLimpo.isBlank() ? null : cpfLimpo;
+    }
+    
+    private String normalizarNumeroRecibo(String numeroRecibo) {
+        if (numeroRecibo == null || numeroRecibo.isBlank()) {
+            return null;
+        }
+        return numeroRecibo.trim();
     }
     
     public List<EventoBancoInfo> buscarEventos(Long idLote, Long idPessoa, Long idConta, 
@@ -436,9 +444,10 @@ public class EventoRepository {
             params.addValue(PARAM_OCORRENCIAS_JSON, ocorrenciasJson);
         }
         
-        if (numeroRecibo != null) {
+        String numeroReciboNormalizado = normalizarNumeroRecibo(numeroRecibo);
+        if (numeroReciboNormalizado != null) {
             updates.add("numerorecibo = :" + PARAM_NUMERO_RECIBO);
-            params.addValue(PARAM_NUMERO_RECIBO, numeroRecibo);
+            params.addValue(PARAM_NUMERO_RECIBO, numeroReciboNormalizado);
         }
         
         if (updates.isEmpty()) {
