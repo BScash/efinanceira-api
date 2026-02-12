@@ -1,6 +1,7 @@
 package br.com.bscash.efinanceira.application.controller;
 
 import br.com.bscash.efinanceira.domain.dto.ApiResponse;
+import br.com.bscash.efinanceira.domain.dto.AtualizarEventoRequest;
 import br.com.bscash.efinanceira.domain.dto.EventosRequest;
 import br.com.bscash.efinanceira.domain.dto.RegistrarEventoRequest;
 import br.com.bscash.efinanceira.domain.dto.RegistrarEventosRequest;
@@ -29,20 +30,7 @@ public class EventoController {
             request = EventosRequest.builder().build();
         }
         
-        List<EventoBancoInfo> eventos = service.buscarEventos(
-            request.getIdLote(),
-            request.getIdPessoa(),
-            request.getIdConta(),
-            request.getCpf(),
-            request.getNome(),
-            request.getStatusEvento(),
-            request.getNumeroRecibo(),
-            request.getEhRetificacao(),
-            request.getDataInicio(),
-            request.getDataFim(),
-            request.getLimite() != null ? request.getLimite() : 100,
-            request.getOffset() != null ? request.getOffset() : 0
-        );
+        List<EventoBancoInfo> eventos = service.buscarEventos(request);
         
         return ResponseEntity.ok(ApiResponse.success("Eventos encontrados com sucesso", eventos));
     }
@@ -64,5 +52,13 @@ public class EventoController {
         response.put("idsEventos", idsEventos);
         response.put("quantidadeRegistrada", idsEventos.size());
         return ResponseEntity.ok(ApiResponse.success("Eventos registrados com sucesso", response));
+    }
+    
+    @PutMapping("/{idEvento}")
+    public ResponseEntity<ApiResponse<Void>> atualizarEvento(
+            @PathVariable Long idEvento,
+            @Valid @RequestBody AtualizarEventoRequest request) {
+        service.atualizarEvento(idEvento, request);
+        return ResponseEntity.ok(ApiResponse.success("Evento atualizado com sucesso", null));
     }
 }
