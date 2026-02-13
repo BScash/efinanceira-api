@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -148,15 +149,12 @@ public class LoteRepository {
         List<String> whereConditions = new ArrayList<>();
         MapSqlParameterSource params = new MapSqlParameterSource();
         
-        if (dataInicio != null && dataFim != null) {
-            whereConditions.add("l.datacriacao >= :dataInicio");
-            whereConditions.add("l.datacriacao <= :dataFim");
-            params.addValue("dataInicio", dataInicio);
-            params.addValue("dataFim", dataFim);
-        } else if (dataInicio != null) {
+        if (dataInicio != null) {
             whereConditions.add("l.datacriacao >= :dataInicio");
             params.addValue("dataInicio", dataInicio);
-        } else if (dataFim != null) {
+        }
+        
+        if (dataFim != null) {
             whereConditions.add("l.datacriacao <= :dataFim");
             params.addValue("dataFim", dataFim);
         }
@@ -166,12 +164,13 @@ public class LoteRepository {
             params.addValue(PARAM_PERIODO, periodo);
         }
         
-        if (ambiente != null && !ambiente.isBlank()) {
-            if ("TEST".equalsIgnoreCase(ambiente) || "TESTE".equalsIgnoreCase(ambiente)) {
-                whereConditions.add("(l.ambiente = 'TEST' OR l.ambiente = 'HOMOLOG')");
+        if (ambiente != null && !ambiente.trim().isEmpty()) {
+            String ambienteUpper = ambiente.trim().toUpperCase();
+            if ("TEST".equals(ambienteUpper) || "TESTE".equals(ambienteUpper)) {
+                whereConditions.add("l.ambiente = 'HOMOLOG'");
             } else {
                 whereConditions.add("l.ambiente = :" + PARAM_AMBIENTE);
-                params.addValue(PARAM_AMBIENTE, ambiente);
+                params.addValue(PARAM_AMBIENTE, ambienteUpper);
             }
         }
         
@@ -179,16 +178,14 @@ public class LoteRepository {
             sql.append(" WHERE ").append(String.join(" AND ", whereConditions));
         }
         
-        sql.append("""
-            GROUP BY l.idlote, l.periodo, l.semestre, l.numerolote, l.quantidadeeventos,
-                     l.cnpjdeclarante, l.protocoloenvio, l.status, l.ambiente,
-                     l.codigorespostaenvio, l.descricaorespostaenvio, l.codigorespostaconsulta,
-                     l.descricaorespostaconsulta, l.datacriacao, l.dataenvio, l.dataconfirmacao,
-                     l.id_lote_original, l.caminhoarquivolotexml, l.situacao, l.idusuarioinclusao,
-                     l.idusuarioalteracao, l.idusuarioalteracaosituacao, l.datainclusao,
-                     l.dataalteracao, l.dataalteracaosituacao
-            ORDER BY l.datacriacao DESC
-            """);
+        sql.append(" GROUP BY l.idlote, l.periodo, l.semestre, l.numerolote, l.quantidadeeventos,");
+        sql.append(" l.cnpjdeclarante, l.protocoloenvio, l.status, l.ambiente,");
+        sql.append(" l.codigorespostaenvio, l.descricaorespostaenvio, l.codigorespostaconsulta,");
+        sql.append(" l.descricaorespostaconsulta, l.datacriacao, l.dataenvio, l.dataconfirmacao,");
+        sql.append(" l.id_lote_original, l.caminhoarquivolotexml, l.situacao, l.idusuarioinclusao,");
+        sql.append(" l.idusuarioalteracao, l.idusuarioalteracaosituacao, l.datainclusao,");
+        sql.append(" l.dataalteracao, l.dataalteracaosituacao");
+        sql.append(" ORDER BY l.datacriacao DESC");
         
         if (limite != null && limite > 0) {
             sql.append(" LIMIT :limite");
@@ -232,6 +229,166 @@ public class LoteRepository {
                               (lote.getCodigoRespostaConsulta() == 1 || lote.getCodigoRespostaConsulta() == 2));
         
         return temProtocolo && respostaOk;
+    }
+    
+    public Long registrarLote(String periodo, Integer quantidadeEventos, String cnpjDeclarante,
+                             String caminhoArquivoXml, String ambiente, Integer numeroLote,
+                             Long idLoteOriginal, Long idUsuarioInclusao) {
+        Integer semestre = calcularSemestre(periodo);
+        LocalDateTime agora = LocalDateTime.now();
+        
+        if (numeroLote == null) {
+            numeroLote = obterProximoNumeroLote(periodo, ambiente);
+        }
+        
+        String sql = """
+            INSERT INTO efinanceira.tb_efinanceira_lote 
+                (periodo, semestre, numerolote, quantidadeeventos, cnpjdeclarante, 
+                 status, ambiente, caminhoarquivolotexml, id_lote_original,
+                 datacriacao, situacao, idusuarioinclusao, datainclusao)
+            VALUES 
+                (:periodo, :semestre, :numeroLote, :quantidadeEventos, :cnpjDeclarante,
+                 'GERADO', :ambiente, :caminhoArquivoXml, :idLoteOriginal,
+                 :dataCriacao, '1', :idUsuarioInclusao, :dataInclusao)
+            RETURNING idlote
+            """;
+        
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue(PARAM_PERIODO, periodo)
+                .addValue("semestre", semestre)
+                .addValue("numeroLote", numeroLote)
+                .addValue("quantidadeEventos", quantidadeEventos)
+                .addValue("cnpjDeclarante", cnpjDeclarante)
+                .addValue(PARAM_AMBIENTE, ambiente)
+                .addValue("caminhoArquivoXml", caminhoArquivoXml)
+                .addValue("idLoteOriginal", idLoteOriginal)
+                .addValue("dataCriacao", agora)
+                .addValue("idUsuarioInclusao", idUsuarioInclusao)
+                .addValue("dataInclusao", agora);
+        
+        return jdbcTemplate.queryForObject(sql, params, Long.class);
+    }
+    
+    private Integer obterProximoNumeroLote(String periodo, String ambiente) {
+        String sql = """
+            SELECT COALESCE(MAX(numerolote), 0) + 1
+            FROM efinanceira.tb_efinanceira_lote
+            WHERE periodo = :periodo
+              AND ambiente = :ambiente
+            """;
+        
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue(PARAM_PERIODO, periodo)
+                .addValue(PARAM_AMBIENTE, ambiente);
+        
+        Integer proximoNumero = jdbcTemplate.queryForObject(sql, params, Integer.class);
+        return proximoNumero != null ? proximoNumero : 1;
+    }
+    
+    @Transactional
+    public void atualizarLote(Long idLote, String status, String protocoloEnvio,
+                             Integer codigoRespostaEnvio, String descricaoRespostaEnvio, String xmlRespostaEnvio,
+                             Integer codigoRespostaConsulta, String descricaoRespostaConsulta, String xmlRespostaConsulta,
+                             LocalDateTime dataEnvio, LocalDateTime dataConfirmacao, String ultimoErro,
+                             String caminhoArquivoAssinado, String caminhoArquivoCriptografado, Long idUsuarioAlteracao) {
+        StringBuilder sql = new StringBuilder("UPDATE efinanceira.tb_efinanceira_lote SET ");
+        List<String> updates = new ArrayList<>();
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        
+        if (status != null) {
+            updates.add("status = :status");
+            params.addValue("status", status);
+        }
+        
+        if (protocoloEnvio != null) {
+            updates.add("protocoloenvio = :protocoloEnvio");
+            params.addValue("protocoloEnvio", protocoloEnvio);
+        }
+        
+        if (codigoRespostaEnvio != null) {
+            updates.add("codigorespostaenvio = :codigoRespostaEnvio");
+            params.addValue("codigoRespostaEnvio", codigoRespostaEnvio);
+        }
+        
+        if (descricaoRespostaEnvio != null) {
+            updates.add("descricaorespostaenvio = :descricaoRespostaEnvio");
+            params.addValue("descricaoRespostaEnvio", descricaoRespostaEnvio);
+        }
+        
+        if (xmlRespostaEnvio != null) {
+            updates.add("xmlrespostaenvio = :xmlRespostaEnvio");
+            params.addValue("xmlRespostaEnvio", xmlRespostaEnvio);
+        }
+        
+        if (codigoRespostaConsulta != null) {
+            updates.add("codigorespostaconsulta = :codigoRespostaConsulta");
+            params.addValue("codigoRespostaConsulta", codigoRespostaConsulta);
+        }
+        
+        if (descricaoRespostaConsulta != null) {
+            updates.add("descricaorespostaconsulta = :descricaoRespostaConsulta");
+            params.addValue("descricaoRespostaConsulta", descricaoRespostaConsulta);
+        }
+        
+        if (xmlRespostaConsulta != null) {
+            updates.add("xmlrespostaconsulta = :xmlRespostaConsulta");
+            params.addValue("xmlRespostaConsulta", xmlRespostaConsulta);
+        }
+        
+        if (dataEnvio != null) {
+            updates.add("dataenvio = :dataEnvio");
+            params.addValue("dataEnvio", dataEnvio);
+        }
+        
+        if (dataConfirmacao != null) {
+            updates.add("dataconfirmacao = :dataConfirmacao");
+            params.addValue("dataConfirmacao", dataConfirmacao);
+        }
+        
+        if (ultimoErro != null) {
+            updates.add("ultimoerro = :ultimoErro");
+            params.addValue("ultimoErro", ultimoErro);
+        }
+        
+        if (caminhoArquivoAssinado != null) {
+            updates.add("caminhoarquivoloteassinadoxml = :caminhoArquivoAssinado");
+            params.addValue("caminhoArquivoAssinado", caminhoArquivoAssinado);
+        }
+        
+        if (caminhoArquivoCriptografado != null) {
+            updates.add("caminhoarquivolotecriptografadoxml = :caminhoArquivoCriptografado");
+            params.addValue("caminhoArquivoCriptografado", caminhoArquivoCriptografado);
+        }
+        
+        if (updates.isEmpty()) {
+            return;
+        }
+        
+        updates.add("dataalteracao = :dataAlteracao");
+        updates.add("idusuarioalteracao = :idUsuarioAlteracao");
+        params.addValue("dataAlteracao", LocalDateTime.now());
+        params.addValue("idUsuarioAlteracao", idUsuarioAlteracao);
+        
+        sql.append(String.join(", ", updates));
+        sql.append(" WHERE idlote = :idLote");
+        params.addValue("idLote", idLote);
+        
+        jdbcTemplate.update(sql.toString(), params);
+    }
+    
+    private Integer calcularSemestre(String periodo) {
+        if (periodo == null || periodo.length() < 6) {
+            return 0;
+        }
+        
+        try {
+            int mes = Integer.parseInt(periodo.substring(4, 6));
+            if (mes == 1 || mes == 6) return 1;
+            if (mes == 2 || mes == 12) return 2;
+            return 0;
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
     
     private RowMapper<LoteBancoInfo> loteRowMapper() {

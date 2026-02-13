@@ -1,7 +1,9 @@
 package br.com.bscash.efinanceira.application.controller;
 
 import br.com.bscash.efinanceira.domain.dto.ApiResponse;
+import br.com.bscash.efinanceira.domain.dto.AtualizarLoteRequest;
 import br.com.bscash.efinanceira.domain.dto.LotesRequest;
+import br.com.bscash.efinanceira.domain.dto.RegistrarLoteRequest;
 import br.com.bscash.efinanceira.domain.model.EventoBancoInfo;
 import br.com.bscash.efinanceira.domain.model.LoteBancoInfo;
 import br.com.bscash.efinanceira.domain.service.LoteService;
@@ -9,7 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/lotes")
@@ -58,5 +62,22 @@ public class LoteController {
             @RequestParam String ambiente) {
         boolean existe = service.verificarAberturaEnviadaParaPeriodo(periodo, ambiente);
         return ResponseEntity.ok(ApiResponse.success("Verificação realizada com sucesso", existe));
+    }
+    
+    @PostMapping
+    public ResponseEntity<ApiResponse<Map<String, Long>>> registrarLote(
+            @RequestBody RegistrarLoteRequest request) {
+        Long idLote = service.registrarLote(request);
+        Map<String, Long> response = new HashMap<>();
+        response.put("idLote", idLote);
+        return ResponseEntity.ok(ApiResponse.success("Lote registrado com sucesso", response));
+    }
+    
+    @PutMapping("/{idLote}")
+    public ResponseEntity<ApiResponse<Void>> atualizarLote(
+            @PathVariable Long idLote,
+            @RequestBody AtualizarLoteRequest request) {
+        service.atualizarLote(idLote, request);
+        return ResponseEntity.ok(ApiResponse.success("Lote atualizado com sucesso", null));
     }
 }
