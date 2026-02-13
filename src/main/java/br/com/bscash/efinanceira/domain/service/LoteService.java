@@ -1,27 +1,27 @@
 package br.com.bscash.efinanceira.domain.service;
 
+import br.com.bscash.efinanceira.domain.dto.AtualizarLoteRequest;
+import br.com.bscash.efinanceira.domain.dto.RegistrarLoteRequest;
 import br.com.bscash.efinanceira.domain.model.EventoBancoInfo;
 import br.com.bscash.efinanceira.domain.model.LoteBancoInfo;
 import br.com.bscash.efinanceira.infrastructure.repository.LoteRepository;
+import br.com.bscash.efinanceira.infrastructure.util.AuditoriaUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class LoteService {
     
     private final LoteRepository repository;
     
     public List<LoteBancoInfo> buscarLotes(LocalDateTime dataInicio, LocalDateTime dataFim, 
                                           String periodo, String ambiente, Integer limite) {
-        DatasAjustadas datas = ajustarDatas(dataInicio, dataFim);
-        return repository.buscarLotes(datas.dataInicio(), datas.dataFim(), periodo, ambiente, limite);
+        return repository.buscarLotes(dataInicio, dataFim, periodo, ambiente, limite);
     }
     
     public LoteBancoInfo buscarLotePorProtocolo(String protocolo) {
@@ -48,18 +48,70 @@ public class LoteService {
         return repository.verificarAberturaEnviadaParaPeriodo(periodo, ambiente);
     }
     
-    private DatasAjustadas ajustarDatas(LocalDateTime dataInicio, LocalDateTime dataFim) {
-        LocalDateTime dataInicioAjustada = dataInicio;
-        LocalDateTime dataFimAjustada = dataFim;
+    @Transactional
+    public Long registrarLote(RegistrarLoteRequest request) {
+        validarRegistrarLoteRequest(request);
         
-        if (dataInicio != null && dataFim == null) {
-            dataFimAjustada = dataInicio.with(LocalTime.MAX);
-        } else if (dataInicio == null && dataFim != null) {
-            dataInicioAjustada = dataFim.with(LocalTime.MIN);
-        }
+        Long idUsuarioInclusao = AuditoriaUtil.obterIdUsuarioAutenticado();
         
-        return new DatasAjustadas(dataInicioAjustada, dataFimAjustada);
+        return repository.registrarLote(
+            request.getPeriodo(),
+            request.getQuantidadeEventos(),
+            request.getCnpjDeclarante(),
+            request.getCaminhoArquivoXml(),
+            request.getAmbiente(),
+            request.getNumeroLote(),
+            request.getIdLoteOriginal(),
+            idUsuarioInclusao
+        );
     }
     
-    private record DatasAjustadas(LocalDateTime dataInicio, LocalDateTime dataFim) {}
+    @Transactional
+    public void atualizarLote(Long idLote, AtualizarLoteRequest request) {
+        if (idLote == null || idLote <= 0) {
+            throw new IllegalArgumentException("ID do lote é obrigatório e deve ser maior que 0.");
+        }
+        if (request == null) {
+            throw new IllegalArgumentException("Request não pode ser nulo.");
+        }
+        
+        Long idUsuarioAlteracao = AuditoriaUtil.obterIdUsuarioAutenticado();
+        
+        repository.atualizarLote(
+            idLote,
+            request.getStatus(),
+            request.getProtocoloEnvio(),
+            request.getCodigoRespostaEnvio(),
+            request.getDescricaoRespostaEnvio(),
+            request.getXmlRespostaEnvio(),
+            request.getCodigoRespostaConsulta(),
+            request.getDescricaoRespostaConsulta(),
+            request.getXmlRespostaConsulta(),
+            request.getDataEnvio(),
+            request.getDataConfirmacao(),
+            request.getUltimoErro(),
+            request.getCaminhoArquivoAssinado(),
+            request.getCaminhoArquivoCriptografado(),
+            idUsuarioAlteracao
+        );
+    }
+    
+    private void validarRegistrarLoteRequest(RegistrarLoteRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Request não pode ser nulo.");
+        }
+        if (request.getQuantidadeEventos() == null || request.getQuantidadeEventos() <= 0) {
+            throw new IllegalArgumentException("Quantidade de eventos é obrigatória e deve ser maior que zero.");
+        }
+        if (request.getCnpjDeclarante() == null || request.getCnpjDeclarante().isBlank()) {
+            throw new IllegalArgumentException("CNPJ do declarante é obrigatório.");
+        }
+        if (request.getCaminhoArquivoXml() == null || request.getCaminhoArquivoXml().isBlank()) {
+            throw new IllegalArgumentException("Caminho do arquivo XML é obrigatório.");
+        }
+        if (request.getAmbiente() == null || request.getAmbiente().isBlank()) {
+            throw new IllegalArgumentException("Ambiente é obrigatório.");
+        }
+    }
+    
 }

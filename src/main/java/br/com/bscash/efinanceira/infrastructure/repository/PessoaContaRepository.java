@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
@@ -16,6 +17,16 @@ public class PessoaContaRepository {
     private final NamedParameterJdbcTemplate jdbcTemplate;
     
     private static final String BUSCAR_PESSOAS_COM_CONTAS_SQL = """
+        WITH totais_extrato AS (
+            SELECT 
+                ex.idconta,
+                COALESCE(SUM(CASE WHEN ex.naturezaoperacao = 'C' THEN ex.valoroperacao ELSE 0 END), 0) as TotCreditos,
+                COALESCE(SUM(CASE WHEN ex.naturezaoperacao = 'D' THEN ex.valoroperacao ELSE 0 END), 0) as TotDebitos
+            FROM conta.tb_extrato ex
+            WHERE ex.dataoperacao >= :dataInicio
+              AND ex.dataoperacao < :dataFim
+            GROUP BY ex.idconta
+        )
         SELECT 
             p.idpessoa as IdPessoa,
             p.documento as Documento,
@@ -35,24 +46,19 @@ public class PessoaContaRepository {
             COALESCE(e.cep, '') as Cep,
             COALESCE(e.tipologradouro, '') as TipoLogradouro,
             '' as EnderecoLivre,
-            COALESCE(SUM(CASE WHEN ex.naturezaoperacao = 'C' THEN ex.valoroperacao ELSE 0 END), 0) as TotCreditos,
-            COALESCE(SUM(CASE WHEN ex.naturezaoperacao = 'D' THEN ex.valoroperacao ELSE 0 END), 0) as TotDebitos
+            COALESCE(te.TotCreditos, 0) as TotCreditos,
+            COALESCE(te.TotDebitos, 0) as TotDebitos
         FROM manager.tb_pessoa p
         INNER JOIN manager.tb_pessoafisica pf ON pf.idpessoa = p.idpessoa
         INNER JOIN conta.tb_conta c ON c.idpessoa = p.idpessoa
-        INNER JOIN conta.tb_extrato ex ON ex.idconta = c.idconta
+        LEFT JOIN totais_extrato te ON te.idconta = c.idconta
         LEFT JOIN manager.tb_endereco e ON e.idpessoa = p.idpessoa AND e.situacao = '1'
         WHERE p.situacao = '1'
           AND c.situacao = '1'
           AND pf.cpf IS NOT NULL
           AND pf.cpf != ''
           AND LENGTH(TRIM(pf.cpf)) >= 11
-          AND EXTRACT(YEAR FROM ex.dataoperacao) = :ano
-          AND EXTRACT(MONTH FROM ex.dataoperacao) BETWEEN :mesInicial AND :mesFinal
-        GROUP BY 
-            p.idpessoa, p.documento, p.nome, pf.cpf, pf.nacionalidade, p.telefone, p.email,
-            c.idconta, c.numeroconta, c.digitoconta, c.saldoatual,
-            e.logradouro, e.numero, e.complemento, e.bairro, e.cep, e.tipologradouro
+          AND te.idconta IS NOT NULL
         ORDER BY p.idpessoa
         LIMIT :limit OFFSET :offset
         """;
@@ -63,8 +69,8 @@ public class PessoaContaRepository {
             COALESCE(SUM(CASE WHEN e.naturezaoperacao = 'D' THEN e.valoroperacao ELSE 0 END), 0) as TotDebitos
         FROM conta.tb_extrato e
         WHERE e.idconta = :idConta
-          AND EXTRACT(YEAR FROM e.dataoperacao) = :ano
-          AND EXTRACT(MONTH FROM e.dataoperacao) BETWEEN :mesInicial AND :mesFinal
+          AND e.dataoperacao >= :dataInicio
+          AND e.dataoperacao < :dataFim
         """;
     
     public PessoaContaRepository(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -72,10 +78,12 @@ public class PessoaContaRepository {
     }
     
     public List<DadosPessoaConta> buscarPessoasComContas(Integer ano, Integer mesInicial, Integer mesFinal, Integer limit, Integer offset) {
+        LocalDate dataInicio = LocalDate.of(ano, mesInicial, 1);
+        LocalDate dataFim = LocalDate.of(ano, mesFinal, 1).plusMonths(1); // Primeiro dia do mês seguinte
+        
         MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("ano", ano)
-                .addValue("mesInicial", mesInicial)
-                .addValue("mesFinal", mesFinal)
+                .addValue("dataInicio", dataInicio)
+                .addValue("dataFim", dataFim)
                 .addValue("limit", limit)
                 .addValue("offset", offset);
         
@@ -83,11 +91,13 @@ public class PessoaContaRepository {
     }
     
     public TotaisMovimentacao calcularTotaisMovimentacao(Long idConta, Integer ano, Integer mesInicial, Integer mesFinal) {
+        LocalDate dataInicio = LocalDate.of(ano, mesInicial, 1);
+        LocalDate dataFim = LocalDate.of(ano, mesFinal, 1).plusMonths(1); // Primeiro dia do mês seguinte
+        
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("idConta", idConta)
-                .addValue("ano", ano)
-                .addValue("mesInicial", mesInicial)
-                .addValue("mesFinal", mesFinal);
+                .addValue("dataInicio", dataInicio)
+                .addValue("dataFim", dataFim);
         
         return jdbcTemplate.queryForObject(CALCULAR_TOTAIS_MOVIMENTACAO_SQL, params, totaisMovimentacaoRowMapper());
     }
