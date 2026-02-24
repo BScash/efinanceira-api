@@ -26,6 +26,14 @@ public class PessoaContaRepository {
             WHERE ex.dataoperacao >= :dataInicio
               AND ex.dataoperacao < :dataFim
             GROUP BY ex.idconta
+        ),
+        saldo_ultimo_dia AS (
+            SELECT DISTINCT ON (ex.idconta)
+                ex.idconta,
+                ex.saldoatual as SaldoUltimoDia
+            FROM conta.tb_extrato ex
+            WHERE ex.dataoperacao < :dataFim
+            ORDER BY ex.idconta, ex.dataoperacao DESC, ex.idextrato DESC
         )
         SELECT 
             p.idpessoa as IdPessoa,
@@ -38,7 +46,7 @@ public class PessoaContaRepository {
             c.idconta as IdConta,
             COALESCE(CAST(c.numeroconta AS TEXT), '') as NumeroConta,
             COALESCE(c.digitoconta, '') as DigitoConta,
-            COALESCE(c.saldoatual, 0) as SaldoAtual,
+            COALESCE(sud.SaldoUltimoDia, 0) as SaldoAtual,
             COALESCE(e.logradouro, '') as Logradouro,
             COALESCE(e.numero, '') as Numero,
             COALESCE(e.complemento, '') as Complemento,
@@ -52,6 +60,7 @@ public class PessoaContaRepository {
         INNER JOIN manager.tb_pessoafisica pf ON pf.idpessoa = p.idpessoa
         INNER JOIN conta.tb_conta c ON c.idpessoa = p.idpessoa
         LEFT JOIN totais_extrato te ON te.idconta = c.idconta
+        LEFT JOIN saldo_ultimo_dia sud ON sud.idconta = c.idconta
         LEFT JOIN manager.tb_endereco e ON e.idpessoa = p.idpessoa AND e.situacao = '1'
         WHERE p.situacao = '1'
           AND c.situacao = '1'
